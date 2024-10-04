@@ -86,7 +86,9 @@ class ParsingSUAIRasp:
             logger.warning(ex)
 
     # Функция для получения группы и предмета по имени преподавателя
-    def search_groups_and_lessons(self, name: str, num: int = 0) -> list[tuple[str, str]]:
+    def search_groups_and_lessons(self, name: str, num: int = 0, l_type: bool = False) -> (
+            list[tuple[str, str]] | list[tuple[str, str, str]]):
+        # Если l_type == True к выводу будет добавлен тип занятия
         try:
             response_def = requests.get(self.URL + f'?p={self.get_index_teacher(name, num)}')
             bs_def = BeautifulSoup(response_def.text, "lxml")
@@ -94,10 +96,15 @@ class ParsingSUAIRasp:
             lessons = bs_def.find_all('div', 'study')
 
             groups_lessons = []
+
             for el in lessons:
                 gr = el.find('span', "groups").text
                 les = el.find('span').text
-                groups_lessons.append((gr[gr.find(':') + 2:], les[les.find('–') + 2:les.rfind('–') - 2]))
+                tip = el.find('b').text
+                if l_type:
+                    groups_lessons.append((gr[gr.find(':') + 2:], tip, les[les.find('–') + 2:les.rfind('–') - 2]))
+                else:
+                    groups_lessons.append((gr[gr.find(':') + 2:], les[les.find('–') + 2:les.rfind('–') - 2]))
 
             return groups_lessons
 
@@ -144,4 +151,4 @@ if __name__ == '__main__':
     logger.debug(Pars.get_names_and_post('Агапудов Д.В.'))
     logger.debug(Pars.search_lessons('Агапудов Д.В.'))
     logger.debug(Pars.search_groups('Агапудов Д.В.'))
-    logger.debug(Pars.search_groups_and_lessons('Агапудов Д.В.'))
+    logger.debug(Pars.search_groups_and_lessons('Агапудов Д.В.', l_type=True))
