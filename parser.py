@@ -56,6 +56,19 @@ class ParsingSUAIRasp:
 
             logger.info('JSON all_group created')
 
+    # Функция для проверки номера группы
+    def get_groups(self, group: str):
+        # Ищем HTML элемент, содержащий список групп
+        group_raw = self.bs.find('div', 'form').find_all('span')[0].find_next()
+        # Извлекаем текст из найденных элементов и фильтруем ненужные значения
+        group_list = [x.text for x in group_raw if x.text not in ('- нет -', '\n')]
+        # Если передана конкретная группа, ищем ее в списке и возвращаем результат
+        if group:
+            if group in group_list:
+                return True
+            else:
+                return False
+
     # Функция для получения имени и должности преподавателя по введенному имени
     def get_names_and_post(self, name: str) -> list[str]:
 
