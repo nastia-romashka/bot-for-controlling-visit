@@ -1,9 +1,8 @@
 # Файл для создания базы данных
+
 import pymysql
-from pymysql import cursors
 from loguru import logger
 from config import host, password, user, db_name
-
 
 class DataBase:
     def __init__(self):
@@ -87,7 +86,6 @@ class DataBase:
                     "gradebook4 INT NOT NULL,"
                     "gradebook3 INT NOT NULL,"
                     "gradebook2 INT NOT NULL,"
-                    "gradebookAverage FLOAT NOT NULL,"
                     "gradebookVisits INT NOT NULL);")
                 cursor.execute(create_table_gradebook)
 
@@ -130,6 +128,21 @@ class DataBase:
             logger.warning("Subject adding error")
             logger.warning(ex)
 
+    ### array[0] - id занятия
+    ### array[1] - id студента
+    def add_gradebook_in_db(self, array: list):
+        try:
+            with self.connection.cursor() as cursor:
+                insert_query = (f"INSERT INTO gradebook(idshedule, idstudent, gradebook5, "
+                                f"gradebook4, gradebook3, gradebook2, gradebookVisits) "
+                                f"Values ({array[0]}, {array[1]}, {0}, {0}, {0}, {0}, {0});")
+                cursor.execute(insert_query)
+                self.connection.commit()
+            logger.info("Gradebook added successfully")
+        except Exception as ex:
+            logger.warning("Subject adding error")
+            logger.warning(ex)
+
     ### array[0] - id студента (номер студ. билета)
     ### array[1] - Группа студента
     ### array[2] - Фамилия студента
@@ -168,6 +181,7 @@ class DataBase:
                 else:
                     array[2] = '"' + array[2] + '"'
                 array[3] = '"' + array[3] + '"'
+                password = '"' + password + '"'
                 insert_query = (f"INSERT INTO teacher(teacherTelegram_id, teacherSurname, "
                                 f"teacherName, teacherPatronymic, teacherPosition, teacherPassword) "
                                 f"VALUES ({tg_id}, {array[0]}, {array[1]}, {array[2]}, {array[3]}, {password});")
@@ -234,6 +248,38 @@ class DataBase:
         except Exception as ex:
             logger.warning("Data deletion error")
             logger.warning(ex)
+
+    def add_grade(self, grade: int, id: int):
+        try:
+            with self.connection.cursor() as cursor:
+                selection = f"SELECT gradebook{grade} FROM gradebook WHERE idstudent = {id};"
+                cursor.execute(selection)
+                info: tuple = cursor.fetchone()
+                new_grade: int = info[f"gradebook{grade}"]+1
+                update_grade = f"UPDATE gradebook SET gradebook{grade} = {new_grade} WHERE idstudent = {id}"
+                cursor.execute(update_grade)
+                self.connection.commit()
+                logger.info("Grade updated successfully")
+        except Exception as ex:
+            logger.warning("Grade adding error")
+            logger.warning(ex)
+
+    def add_visits(self, id: int):
+        try:
+            with self.connection.cursor() as cursor:
+                selection = f"SELECT gradebookVisits FROM gradebook WHERE idstudent = {id};"
+                cursor.execute(selection)
+                info: tuple = cursor.fetchone()
+                new_visits: int = info["gradebookVisits"]+1
+                update_grade = f"UPDATE gradebook SET gradebookVisits = {new_visits} WHERE idstudent = {id}"
+                cursor.execute(update_grade)
+                self.connection.commit()
+                logger.info("Visits updated successfully")
+        except Exception as ex:
+            logger.warning("Visits adding error")
+            logger.warning(ex)
+
+
 
     ### close db ###
     def close(self):
