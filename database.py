@@ -1,22 +1,44 @@
 # Файл для создания базы данных
+
 import pymysql
-from pymysql import cursors
 from loguru import logger
 from config import host, password, user, db_name
-
 
 class DataBase:
     def __init__(self):
         try:
-            self.connection = pymysql.connect(
-                host=host,
-                port=3306,
-                user=user,
-                password=password,
-                database=db_name,
-                cursorclass=pymysql.cursors.DictCursor
-            )
-            logger.info("Conection successful")
+            try:
+                self.connection = pymysql.connect(
+                    host=host,
+                    port=3306,
+                    user=user,
+                    password=password,
+                    database=db_name,
+                    cursorclass=pymysql.cursors.DictCursor
+                )
+                logger.info("Connection successful")
+            except:
+                self.connection = pymysql.connect(
+                    host=host,
+                    port=3306,
+                    user=user,
+                    password=password,
+                    cursorclass=pymysql.cursors.DictCursor
+                )
+                logger.info("Connection successful (without db)")
+                with self.connection.cursor() as cursor:
+                    create_db = "CREATE DATABASE " + db_name
+                    cursor.execute(create_db)
+                    logger.info("Database creation successful")
+                self.connection = pymysql.connect(
+                    host=host,
+                    port=3306,
+                    user=user,
+                    password=password,
+                    database=db_name,
+                    cursorclass=pymysql.cursors.DictCursor
+                )
+                logger.info("Connection successful")
         except Exception as ex:
             logger.warning("Connection error")
             logger.warning(ex)
@@ -64,7 +86,6 @@ class DataBase:
                     "gradebook4 INT NOT NULL,"
                     "gradebook3 INT NOT NULL,"
                     "gradebook2 INT NOT NULL,"
-                    "gradebookAverage FLOAT NOT NULL,"
                     "gradebookVisits INT NOT NULL);")
                 cursor.execute(create_table_gradebook)
 
@@ -79,13 +100,14 @@ class DataBase:
             logger.warning(ex)
 
     ### update data in db ###
-    def update_data_in_db(self, table: str, parameter: str):
+    ### array[0] - Параметр, в котором будет изменение в таблице
+    ### array[1] - На что поменять значение параметра
+    ### array[2] - id, в котором поменяется значение
+    def update_data_in_db(self, table: str, array: list):
         try:
             with self.connection.cursor() as cursor:
-                set_to: str = input("What to change the value to: ")
-                set_to = '"' + set_to + '"'
-                id: str = input("In which id to change: ")
-                update_subject = f"UPDATE {table} SET {parameter} = {set_to} WHERE id{table} = {id};"
+                array[1] = '"' + array[1] + '"'
+                update_subject = f"UPDATE {table} SET {array[0]} = {array[1]} WHERE id{table} = {array[2]};"
                 cursor.execute(update_subject)
                 self.connection.commit()
                 logger.info("Data updated successfully")
@@ -94,10 +116,9 @@ class DataBase:
             logger.warning(ex)
 
     ### add data in db ###
-    def add_subject_in_db(self):
+    def add_subject_in_db(self, subName: str):
         try:
             with self.connection.cursor() as cursor:
-                subName: str = input("Enter the name of the subject: ")
                 subName = '"' + subName + '"'
                 insert_query = f"INSERT INTO subject(subjectName) VALUES ({subName});"
                 cursor.execute(insert_query)
@@ -107,23 +128,38 @@ class DataBase:
             logger.warning("Subject adding error")
             logger.warning(ex)
 
-    def add_student_in_db(self, tg_id: int):
+    ### array[0] - id занятия
+    ### array[1] - id студента
+    def add_gradebook_in_db(self, array: list):
         try:
             with self.connection.cursor() as cursor:
-                id: int = int(input("Enter id of the student: "))
-                group: str = input("Enter group of the student: ")
-                surname: str = input("Enter surname of the student: ")
-                surname = '"' + surname + '"'
-                name: str = input("Enter name of the student: ")
-                name = '"' + name + '"'
-                patronymic: str = input("Enter patronymic of the student (if there is no patronymic, enter No): ")
-                if patronymic != "No":
-                    patronymic = '"' + patronymic + '"'
+                insert_query = (f"INSERT INTO gradebook(idshedule, idstudent, gradebook5, "
+                                f"gradebook4, gradebook3, gradebook2, gradebookVisits) "
+                                f"Values ({array[0]}, {array[1]}, {0}, {0}, {0}, {0}, {0});")
+                cursor.execute(insert_query)
+                self.connection.commit()
+            logger.info("Gradebook added successfully")
+        except Exception as ex:
+            logger.warning("Subject adding error")
+            logger.warning(ex)
+
+    ### array[0] - id студента (номер студ. билета)
+    ### array[1] - Группа студента
+    ### array[2] - Фамилия студента
+    ### array[3] - Имя студента
+    ### array[4] - Отчество студента
+    def add_student_in_db(self, array: list,tg_id: int):
+        try:
+            with self.connection.cursor() as cursor:
+                array[2] = '"' + array[2] + '"'
+                array[3] = '"' + array[3] + '"'
+                if array[4] != "No":
+                    array[4] = '"' + array[4] + '"'
                 else:
-                    patronymic = "Null"
+                    array[4] = "Null"
                 insert_query = (f"INSERT INTO student(idstudent, studentGroup, studentSurname, "
                                 f"studentName, studentPatronymic, studentTelegram_id) "
-                                f"VALUES ({id}, {group}, {surname}, {name}, {patronymic}, {tg_id});")
+                                f"VALUES ({array[0]}, {array[1]}, {array[2]}, {array[3]}, {array[4]}, {tg_id});")
                 cursor.execute(insert_query)
                 self.connection.commit()
                 logger.info("Student added Successfully")
@@ -131,23 +167,24 @@ class DataBase:
             logger.warning("Student adding error")
             logger.warning(ex)
 
-    def add_teacher_in_db(self, tg_id: int, password: str):
+    ### array[0] - Фамилия преподавателя
+    ### array[1] - Имя преподавателя
+    ### array[2] - Отчество преподавателя
+    ### array[3] - Должность преподавателя
+    def add_teacher_in_db(self, array: list, tg_id: int, password: str):
         try:
             with self.connection.cursor() as cursor:
-                surname: str = input("Enter surname of the teacher: ")
-                surname = '"' + surname + '"'
-                name: str = input("Enter name of the teacher: ")
-                name = '"' + name + '"'
-                patronymic: str = input("Enter patronymic of the teacher (if there is no patronymic, enter No): ")
-                if patronymic == "No":
-                    patronymic = "Null"
+                array[0] = '"' + array[0] + '"'
+                array[1] = '"' + array[1] + '"'
+                if array[2] == "No":
+                    array[2] = "Null"
                 else:
-                    patronymic = '"' + patronymic + '"'
-                position: str = input("Enter position of the teacher: ")
-                position = '"' + position + '"'
+                    array[2] = '"' + array[2] + '"'
+                array[3] = '"' + array[3] + '"'
+                password = '"' + password + '"'
                 insert_query = (f"INSERT INTO teacher(teacherTelegram_id, teacherSurname, "
                                 f"teacherName, teacherPatronymic, teacherPosition, teacherPassword) "
-                                f"VALUES ({tg_id}, {surname}, {name}, {patronymic}, {position}, {password});")
+                                f"VALUES ({tg_id}, {array[0]}, {array[1]}, {array[2]}, {array[3]}, {password});")
                 cursor.execute(insert_query)
                 self.connection.commit()
                 logger.info("Teacher added Successfully")
@@ -155,17 +192,17 @@ class DataBase:
             logger.warning("Teacher adding error")
             logger.warning(ex)
 
-    def add_shedule_in_db(self):
+    ### array[0] - id предмета
+    ### array[1] - id преподавателя
+    ### array[2] - Тип занятия (лабораторная/лекция и т.п.)
+    ### array[3] - Группа, у которой занятие
+    def add_shedule_in_db(self, array: list):
         try:
             with self.connection.cursor() as cursor:
-                idsubject: int = int(input("Enter subject id: "))
-                idteacher: int = int(input("Enter teacher id: "))
-                type: str = input("Enter type of lesson: ")
-                type = '"' + type + '"'
-                group: int = int(input("Enter group: "))
+                array[2] = '"' + array[2] + '"'
                 insert_query = (f"INSERT INTO shedule(idsubject, idteacher, "
                                 f"sheduletype, sheduleGroup) "
-                                f"VALUES ({idsubject}, {idteacher}, {type}, {group});")
+                                f"VALUES ({array[0]}, {array[1]}, {array[2]}, {array[3]});")
                 cursor.execute(insert_query)
                 self.connection.commit()
                 logger.info("Shedule added Successfully")
@@ -173,7 +210,7 @@ class DataBase:
             logger.warning("Shedule adding error")
             logger.warning(ex)
 
-    def add_admin_in_db(self, tg_id: int, Password: int):
+    def add_admin_in_db(self, tg_id: int, password: int):
         try:
             with self.connection.cursor() as cursor:
                 id: int = int(input("Enter admin id: "))
@@ -201,17 +238,48 @@ class DataBase:
             logger.warning(ex)
 
     ### delete data in db ###
-    def delete_data_in_db(self, table: str):
+    def delete_data_in_db(self, table: str, id: int):
         try:
             with self.connection.cursor() as cursor:
-                delete_id: str = input("Select id for deletion: ")
-                delete_subject = f"DELETE FROM {table} WHERE id{table} = {delete_id};"
+                delete_subject = f"DELETE FROM {table} WHERE id{table} = {id};"
                 cursor.execute(delete_subject)
                 self.connection.commit()
                 logger.info("Data deleted successfully")
         except Exception as ex:
             logger.warning("Data deletion error")
             logger.warning(ex)
+
+    def add_grade(self, grade: int, id: int):
+        try:
+            with self.connection.cursor() as cursor:
+                selection = f"SELECT gradebook{grade} FROM gradebook WHERE idstudent = {id};"
+                cursor.execute(selection)
+                info: tuple = cursor.fetchone()
+                new_grade: int = info[f"gradebook{grade}"]+1
+                update_grade = f"UPDATE gradebook SET gradebook{grade} = {new_grade} WHERE idstudent = {id}"
+                cursor.execute(update_grade)
+                self.connection.commit()
+                logger.info("Grade updated successfully")
+        except Exception as ex:
+            logger.warning("Grade adding error")
+            logger.warning(ex)
+
+    def add_visits(self, id: int):
+        try:
+            with self.connection.cursor() as cursor:
+                selection = f"SELECT gradebookVisits FROM gradebook WHERE idstudent = {id};"
+                cursor.execute(selection)
+                info: tuple = cursor.fetchone()
+                new_visits: int = info["gradebookVisits"]+1
+                update_grade = f"UPDATE gradebook SET gradebookVisits = {new_visits} WHERE idstudent = {id}"
+                cursor.execute(update_grade)
+                self.connection.commit()
+                logger.info("Visits updated successfully")
+        except Exception as ex:
+            logger.warning("Visits adding error")
+            logger.warning(ex)
+
+
 
     ### close db ###
     def close(self):
