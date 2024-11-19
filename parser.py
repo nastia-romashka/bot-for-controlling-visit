@@ -7,7 +7,7 @@ import json
 import os
 
 logger.remove()
-logger.add(sys.stderr, level="INFO")
+logger.add(sys.stderr, level="DEBUG")
 
 
 class ParsingSUAIRasp:
@@ -69,11 +69,21 @@ class ParsingSUAIRasp:
             else:
                 return False
 
+    def __separator_names_and_post(self, nap: str) -> list[str]:
+        fio_arr = []
+        fio_arr.append(nap[:nap.find(' ')])
+        nap = nap[nap.find(' ') + 1:]
+        fio_arr.append(nap[:nap.find('.')])
+        nap = nap[nap.find('.') + 1:]
+        fio_arr.append(nap[:nap.find('.')])
+        nap = nap[nap.find('.'):]
+        fio_arr.append(nap[nap.rfind('-') + 2:])
+        return fio_arr
+
     # Функция для получения имени и должности преподавателя по введенному имени
     def get_names_and_post(self, name: str) -> list[str]:
 
         try:
-
             # Обработка имени для предотвращения ошибок из-за опечаток
             # Все имена приводятся к нижнему регистру и удаляются все пробелы и точки
             name = name.replace(" ", "")
@@ -84,6 +94,24 @@ class ParsingSUAIRasp:
             with open("all_teachers_names.json", "r") as file:
                 names: dict = json.load(file)
             return names[name]
+
+        except Exception as ex:
+            logger.warning("There is no teacher with that name")
+            logger.warning(ex)
+
+    def get_names_and_post_arr(self, name: str, index: int = 0) -> list[str]:
+
+        try:
+            # Обработка имени для предотвращения ошибок из-за опечаток
+            # Все имена приводятся к нижнему регистру и удаляются все пробелы и точки
+            name = name.replace(" ", "")
+            name = name.replace('.', '')
+            name = name.replace(',', '')
+            name = name.lower()
+
+            with open("all_teachers_names.json", "r") as file:
+                names: dict = json.load(file)
+            return self.__separator_names_and_post(names[name][index])
 
         except Exception as ex:
             logger.warning("There is no teacher with that name")
@@ -162,6 +190,7 @@ class ParsingSUAIRasp:
 if __name__ == '__main__':
     Pars: ParsingSUAIRasp = ParsingSUAIRasp()
     logger.debug(Pars.get_names_and_post('Агапудов Д.В.'))
+    logger.debug(Pars.get_names_and_post_arr('Агапудов Д.В.'))
     logger.debug(Pars.search_lessons('Агапудов Д.В.'))
     logger.debug(Pars.search_groups('Агапудов Д.В.'))
     logger.debug(Pars.search_groups_and_lessons('Агапудов Д.В.', l_type=True))
