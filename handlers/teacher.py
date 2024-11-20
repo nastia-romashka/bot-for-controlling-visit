@@ -10,15 +10,13 @@ from hashlib import sha256
 from config import default_password
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
-
-from db.models import Teacher
+from db.orm_query import orm_add_teacher, orm_get_teacher
 
 from loguru import logger
 import sys
 
 logger.remove()
-logger.add(sys.stderr, level="INFO")
+logger.add(sys.stderr, level="DEBUG")
 
 pars: ParsingSUAIRasp = ParsingSUAIRasp()
 
@@ -35,6 +33,8 @@ class Teacher_Registration(StatesGroup):
 
     teacher_registration_step = None
 
+    teacher_registered = False
+
     texts = {
         "Teacher_Registration:name": "Введите имя заново:",
         "Teacher_Registration:name_and_post": "Выберете заново заново:",
@@ -44,9 +44,24 @@ class Teacher_Registration(StatesGroup):
 
 # Начало регистрации преподавателя
 @teacher_router.message(F.text == "Преподаватель")
-async def starring(message: types.Message, state: FSMContext):
-    await message.answer("Введите имя в формате: <i>Иванов И. И.</i>", reply_markup=types.ReplyKeyboardRemove())
-    await state.set_state(Teacher_Registration.id)
+async def starring(message: types.Message, state: FSMContext, session: AsyncSession):
+
+    tg_id = message.chat.id
+    teacher = await orm_get_teacher(session, tg_id)
+    # Если преподаватель уже есть в базе данных, переходим к проверке пароля
+    if teacher and teacher.teacherTelegram_id:
+        Teacher_Registration.teacher_registered = True
+        await message.answer("Введите пароль:", reply_markup=types.ReplyKeyboardRemove())
+        await state.set_state(Teacher_Registration.password)
+        await state.update_data(id=teacher.teacherTelegram_id,
+                                name_and_post=[teacher.teacherSurname,
+                                               teacher.teacherName,
+                                               teacher.teacherPatronymic,
+                                               teacher.teacherPosition])
+    else:
+        # Если преподавателя нет в базе данных, переходим к регистрации имени
+        await message.answer("Введите имя в формате: <i>Иванов И. И.</i>", reply_markup=types.ReplyKeyboardRemove())
+        await state.set_state(Teacher_Registration.id)
 
 
 # Получение имени
@@ -67,7 +82,7 @@ async def add_name(message: types.Message, state: FSMContext):
 @teacher_router.callback_query(Teacher_Registration.name_and_post, F.data.startswith("teacher_"))
 async def name_post(callback: types.CallbackQuery, state: FSMContext):
     cd: list = callback.data.split("_")
-    name_and_post: list = pars.get_names_and_post_arr(cd[-2])
+    name_and_post: list = pars.get_names_and_post_arr(cd[-2],int(cd[-1]))
     await state.update_data(name_and_post=name_and_post)
 
     await callback.answer("Вы выбрали")
@@ -79,35 +94,41 @@ async def name_post(callback: types.CallbackQuery, state: FSMContext):
 async def password(message: types.Message, state: FSMContext, session: AsyncSession):
     hash_password = sha256(message.text.encode('utf-8')).hexdigest()
 
-    # Успешная регистрация
-    if hash_password == default_password:
-        await state.update_data(password=hash_password)
-        Teacher_Registration.teacher_registration_step = None
-        data = await state.get_data()
-        await state.clear()
-        await message.answer("Вы вошли!")
+    # Проверка был ли преподаватель зарегистрирован ранее
+    if Teacher_Registration.teacher_registered:
+        teach = await orm_get_teacher(session, message.chat.id)
+        pw = teach.teacherPassword
 
-        # Создание преподавателя
-        teach = Teacher(
-            teacherTelegram_id=data['id'],
-            teacherSurname=data['name_and_post'][0],
-            teacherName=data['name_and_post'][1],
-            teacherPatronymic=data['name_and_post'][2],
-            teacherPosition=data['name_and_post'][3],
-            teacherPassword=data['password']
-        )
+        if hash_password == pw:
+            await state.update_data(password=hash_password)
+            Teacher_Registration.teacher_registration_step = None
+            Teacher_Registration.teacher_registered = False
+            await state.clear()
+            await message.answer("Вы вошли!")
 
-        # Добавление преподавателя в таблицу
-        session.add(teach)
-        await session.commit()
 
-        logger.debug(data['id'])
-        logger.debug(data['password'])
-        logger.debug(data['name_and_post'])
-
-    # Не верный пароль
     else:
-        await message.answer("Пароль не верен. Попробуйте снова.")
+        # Успешная регистрация
+        if hash_password == default_password:
+            await state.update_data(password=hash_password)
+            Teacher_Registration.teacher_registration_step = None
+            data = await state.get_data()
+
+            try:
+                await orm_add_teacher(session, data)
+                await state.clear()
+                await message.answer("Вы вошли!")
+            except Exception as ex:
+                logger.warning('data is not add', ex)
+                await message.answer("Попробуйте снова.")
+
+            logger.debug(data['id'])
+            logger.debug(data['password'])
+            logger.debug(data['name_and_post'])
+
+        # Не верный пароль
+        else:
+            await message.answer("Пароль не верен. Попробуйте снова.")
 
 # Отмена действий
 @teacher_router.message(StateFilter("*"), Command("отмена"))
