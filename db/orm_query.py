@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import Teacher
+from db.models import Teacher, Lesson
 from sqlalchemy import select
+from parser import Lessons
 
 
 async def orm_add_teacher(session: AsyncSession, data: dict):
@@ -22,3 +23,15 @@ async def orm_get_teacher(session: AsyncSession, tg_id: int):
     query = select(Teacher).where(Teacher.teacherTelegram_id == tg_id)
     result = await session.execute(query)
     return result.scalar()
+
+async def orm_add_lesson(session: AsyncSession, data: dict, lesson:Lessons):
+# Создание преподавателя
+        les = Lesson(
+            teacherTelegram_id=data['id'],
+            LessonName=lesson[2],
+            LessontType=lesson[1],
+            Group=lesson[0]
+        )
+
+        session.add(les)
+        await session.commit()

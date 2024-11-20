@@ -10,6 +10,27 @@ logger.remove()
 logger.add(sys.stderr, level="DEBUG")
 
 
+class Lessons():
+
+    def __init__(self, group: int, type: str, name: str) -> None:
+        self.lesson: list = [group, type, name]
+
+    def __getitem__(self, item: int):
+        return self.lesson[item]
+
+    def __eq__(self, other: 'Lessons'):
+        for i in range(len(self.lesson)):
+            if self.lesson[i] != other[i]:
+                return False
+        return True
+
+    def __str__(self) -> str:
+        return str(self.lesson)
+
+    def __repr__(self) -> str:
+        return f'{self.lesson}'
+
+
 class ParsingSUAIRasp:
 
     def __init__(self) -> None:
@@ -127,25 +148,21 @@ class ParsingSUAIRasp:
             logger.warning(ex)
 
     # Функция для получения группы и предмета по имени преподавателя
-    def search_groups_and_lessons(self, name: str, num: int = 0, l_type: bool = False) -> (
-            list[tuple[str, str]] | list[tuple[str, str, str]]):
-        # Если l_type == True к выводу будет добавлен тип занятия
+    def search_groups_and_lessons(self, name: str, num: int = 0):
         try:
             response_def = requests.get(self.URL + f'?p={self.get_index_teacher(name, num)}')
             bs_def = BeautifulSoup(response_def.text, "lxml")
-
             lessons = bs_def.find_all('div', 'study')
-
             groups_lessons = []
 
             for el in lessons:
                 gr = el.find('span', "groups").text
                 les = el.find('span').text
                 tip = el.find('b').text
-                if l_type:
-                    groups_lessons.append((gr[gr.find(':') + 2:], tip, les[les.find('–') + 2:les.rfind('–') - 2]))
-                else:
-                    groups_lessons.append((gr[gr.find(':') + 2:], les[les.find('–') + 2:les.rfind('–') - 2]))
+                l: Lessons = Lessons (int(gr[gr.find(':') + 2:]), tip, les[les.find('–') + 2:les.rfind('–') - 2])
+
+                if not (l in groups_lessons):
+                    groups_lessons.append(l)
 
             return groups_lessons
 
@@ -191,6 +208,6 @@ if __name__ == '__main__':
     Pars: ParsingSUAIRasp = ParsingSUAIRasp()
     logger.debug(Pars.get_names_and_post('Агапудов Д.В.'))
     logger.debug(Pars.get_names_and_post_arr('Агапудов Д.В.'))
-    logger.debug(Pars.search_lessons('Агапудов Д.В.'))
-    logger.debug(Pars.search_groups('Агапудов Д.В.'))
-    logger.debug(Pars.search_groups_and_lessons('Агапудов Д.В.', l_type=True))
+    logger.debug(Pars.search_lessons('Аграновский А.В.'))
+    logger.debug(Pars.search_groups('Аграновский А.В.'))
+    logger.debug(Pars.search_groups_and_lessons('Аграновский А.В.'))

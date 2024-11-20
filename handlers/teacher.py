@@ -10,7 +10,7 @@ from hashlib import sha256
 from config import default_password
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_teacher, orm_get_teacher
+from db.orm_query import orm_add_teacher, orm_get_teacher, orm_add_lesson
 
 from loguru import logger
 import sys
@@ -22,6 +22,10 @@ pars: ParsingSUAIRasp = ParsingSUAIRasp()
 
 teacher_router = Router()
 teacher_router.message.filter(ChatTypeFilter(["private"]))
+
+async def add_all_lessons(session: AsyncSession,data:dict, lessons: list):
+    for el in lessons:
+        await orm_add_lesson(session,data,el)
 
 
 
@@ -118,6 +122,11 @@ async def password(message: types.Message, state: FSMContext, session: AsyncSess
                 await orm_add_teacher(session, data)
                 await state.clear()
                 await message.answer("Вы вошли!")
+
+                await add_all_lessons(session, data,pars.search_groups_and_lessons(f'{data['name_and_post'][0]+
+                                                                  data['name_and_post'][1]+
+                                                                  data['name_and_post'][2]}'))
+
             except Exception as ex:
                 logger.warning('data is not add', ex)
                 await message.answer("Попробуйте снова.")
