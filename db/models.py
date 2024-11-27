@@ -31,12 +31,11 @@ class Lesson(Base):
 class Student(Base):
     __tablename__ = 'student'
 
-    studentId: Mapped[int] = mapped_column(Integer, primary_key=True)
+    studentTelegram_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     studentGroup: Mapped[int] = mapped_column(Integer, use_existing_column=False)
     studentSurname: Mapped[str] = mapped_column(String(30), use_existing_column=False)
     studentName: Mapped[str] = mapped_column(String(30), use_existing_column=False)
     studentPatronymic: Mapped[str] = mapped_column(String(30), use_existing_column=False)
-    studentTelegram_id: Mapped[int] = mapped_column(Integer)
 
 class Gradebook(Base):
     __tablename__ = 'gradebook'
