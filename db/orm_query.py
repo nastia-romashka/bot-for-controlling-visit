@@ -28,9 +28,9 @@ async def orm_add_lesson(session: AsyncSession, data: dict, lesson: Lessons):
     # Создание занятия
     les = Lesson(
         teacherTelegram_id=data['id'],
-        LessonName=lesson[2],
-        LessontType=lesson[1],
-        Group=lesson[0]
+        lessonName=lesson[2],
+        lessontType=lesson[1],
+        group=lesson[0]
     )
     session.add(les)
     await session.commit()
