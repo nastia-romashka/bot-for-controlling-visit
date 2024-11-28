@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from models import Teacher, Lesson, Student, Gradebook, Admin
+from db.models import Teacher, Lesson, Student, Gradebook, Admin
 from sqlalchemy import select
 from parser import Lessons
 
@@ -19,12 +19,10 @@ async def orm_add_teacher(session: AsyncSession, data: dict):
     session.add(teach)
     await session.commit()
 
-
 async def orm_get_teacher(session: AsyncSession, tg_id: int):
     query = select(Teacher).where(Teacher.teacherTelegram_id == tg_id)
     result = await session.execute(query)
     return result.scalar()
-
 
 async def orm_add_lesson(session: AsyncSession, data: dict, lesson: Lessons):
     # Создание занятия
@@ -34,21 +32,19 @@ async def orm_add_lesson(session: AsyncSession, data: dict, lesson: Lessons):
         LessontType=lesson[1],
         Group=lesson[0]
     )
-
     session.add(les)
     await session.commit()
 
 async def orm_add_student(session: AsyncSession, data: dict):
     # Создание студента
     stud = Student(
-        studentTelegram_id=data['id'],
-        studentGroup=data['group'],
-        studentSurname=data['name'][0],
-        studentName=data['name'][1],
-        studentPatronymic=data['name'][2],
+        studentTelegram_id=data['id_stud'],
+        studentSurname=data['name_stud'][:-5],
+        studentName=data['name_stud'][-4:-3],
+        studentPatronymic=data['name_stud'][-2:-1],
+        studentGroup=data['group']
     )
-
-    # Добавление преподавателя в таблицу
+    # Добавление студента в таблицу
     session.add(stud)
     await session.commit()
 
@@ -57,7 +53,7 @@ async def orm_get_student(session: AsyncSession, id: int):
     query = select(Student).where(Student.studentTelegram_id == id)
     result = await session.execute(query)
     return result.scalar()
-#
+
 # async def orm_add_gradebook(session: AsyncSession, data: dict):
 #     # Создание дневника
 #     grade_b = Gradebook(
