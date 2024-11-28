@@ -4,10 +4,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from filters.chat_types import ChatTypeFilter
 from all_buttons.buttons import start_kb
+from all_buttons import buttons
 from parser import ParsingSUAIRasp
-from all_buttons.inline_btn import get_callback_btns
+from all_buttons.inline_btn import get_callback_btns, get_group_buttons
 from hashlib import sha256
 from config import default_password
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.orm_query import orm_add_teacher, orm_get_teacher, orm_add_lesson
@@ -22,6 +25,9 @@ pars: ParsingSUAIRasp = ParsingSUAIRasp()
 
 teacher_router = Router()
 teacher_router.message.filter(ChatTypeFilter(["private"]))
+
+# Глобальные переменные
+attendance_data = {}
 
 async def add_all_lessons(session: AsyncSession,data:dict, lessons: list):
     for el in lessons:
@@ -108,7 +114,7 @@ async def password(message: types.Message, state: FSMContext, session: AsyncSess
             Teacher_Registration.teacher_registration_step = None
             Teacher_Registration.teacher_registered = False
             await state.clear()
-            await message.answer("Вы вошли!")
+            await message.answer("Вы вошли!", reply_markup=buttons.teacher_kb)
 
 
     else:
@@ -121,11 +127,9 @@ async def password(message: types.Message, state: FSMContext, session: AsyncSess
             try:
                 await orm_add_teacher(session, data)
                 await state.clear()
-                await message.answer("Вы вошли!")
+                await message.answer("Вы вошли!", reply_markup=buttons.teacher_kb)
 
-                await add_all_lessons(session, data,pars.search_groups_and_lessons(f'{data['name_and_post'][0]+
-                                                                  data['name_and_post'][1]+
-                                                                  data['name_and_post'][2]}'))
+                await add_all_lessons(session, data,pars.search_groups_and_lessons(f"{data['name_and_post'][0]+ data['name_and_post'][1]+ data['name_and_post'][2]}"))
 
             except Exception as ex:
                 logger.warning('data is not add', ex)
@@ -150,4 +154,86 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
         Teacher_Registration.teacher_registration_step = None
     await state.clear()
     await message.answer("Действия отменены", reply_markup=start_kb)
+
+@teacher_router.message(F.text == "Выбрать группу")
+async def choose_group(message: types.Message, state: FSMContext, session: AsyncSession):
+    # Получаем ID чата пользователя
+    id_chat = message.chat.id
+    # Извлекаем данные преподавателя из базы
+    teacher = await orm_get_teacher(session, id_chat)
+    if not teacher:
+        await message.answer("Вы не зарегистрированы как преподаватель. Пожалуйста, зарегистрируйтесь.")
+        return
+    # Формируем ФИО преподавателя
+    teacher_name = f"{teacher.teacherSurname} {teacher.teacherName[0]}.{teacher.teacherPatronymic[0]}."
+    groups: list = pars.search_groups(teacher_name)
+
+    keyboard = get_group_buttons(groups)
+    # Отправка сообщения с инлайн-кнопками
+    await message.answer("Выберите группу:", reply_markup=keyboard)
+
+# Обработчик выбора группы
+@teacher_router.callback_query(F.data.startswith("select_group_"))
+async def handle_group_selection(callback: types.CallbackQuery, state: FSMContext):
+    group_number = callback.data.split("_")[-1]
+
+    # Сохранение выбранной группы
+    await state.update_data(selected_group=group_number)
+
+    # Клавиатура с кнопкой "Начать отмечать посещения (10 мин)"
+    start_attendance_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text= "Начать отмечать посещения (10 мин)", callback_data=f"start_attendance_{group_number}")]
+        ]
+    )
+    await callback.answer(f"Вы выбрали группу {group_number}")
+    await callback.message.answer(
+        f"Группа {group_number} выбрана. Нажмите на кнопку, чтобы начать отмечать посещения.",
+        reply_markup=start_attendance_kb
+    )
+
+"""# Начало учёта посещаемости
+@teacher_router.callback_query(F.data.startswith("start_attendance_"))
+async def start_attendance(callback: types.CallbackQuery, state: FSMContext):
+    group_number = callback.data.split("_")[-1]
+    attendance_data[group_number] = set()  # Сбрасываем список отметившихся студентов
+
+    # Рассылка студентам уведомления с кнопкой "Отметиться"
+    student_ids = "1349374748"  # Получение ID студентов из базы
+
+    check_in_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Отметиться",
+                    callback_data=f"mark_attendance_{group_number}"
+                )
+            ]
+        ]
+    )
+
+    for student_id in student_ids:
+        await callback.bot.send_message(
+            chat_id=student_id,
+            text=f"Преподаватель начал отмечать посещаемость для группы {group_number}. У вас есть 10 минут!",
+            reply_markup=check_in_kb
+        )
+
+    # Уведомление преподавателя
+    await callback.answer("Учёт посещаемости начат.")
+    await callback.message.answer(f"Учёт посещаемости для группы {group_number} начат на 10 минут.")
+
+    # Таймер на 10 минут
+    await asyncio.sleep(600)
+
+    # Завершение учёта
+    present_students = attendance_data.get(group_number, set())
+    await callback.message.answer(
+        f"Учёт посещаемости завершён. Присутствующие студенты:\n" +
+        "\n".join(present_students) if present_students else "Никто не отметился."
+    )
+
+    # Очистка данных для группы
+    attendance_data.pop(group_number, None)"""
+
 
