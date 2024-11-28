@@ -29,7 +29,7 @@ async def orm_add_lesson(session: AsyncSession, data: dict, lesson: Lessons):
     les = Lesson(
         teacherTelegram_id=data['id'],
         lessonName=lesson[2],
-        lessontType=lesson[1],
+        lessonType=lesson[1],
         group=lesson[0]
     )
     session.add(les)
