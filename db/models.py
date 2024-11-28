@@ -1,6 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import  ForeignKey, String, Integer
-
+from sqlalchemy import ForeignKey, String, Integer
 
 # Создание базового класса
 class Base(DeclarativeBase):
@@ -42,7 +41,7 @@ class Gradebook(Base):
 
     gradebookId: Mapped[int] = mapped_column(Integer, primary_key=True,autoincrement=True)
     lessonId: Mapped[int] = mapped_column(Integer, ForeignKey('lesson.lessonId'))
-    studentId: Mapped[int] = mapped_column(Integer, ForeignKey('student.studentId'))
+    studentTelegram_id: Mapped[int] = mapped_column(Integer, ForeignKey('student.studentTelegram_id'))
     gradebook5: Mapped[int] = mapped_column(Integer, use_existing_column=False)
     gradebook4: Mapped[int] = mapped_column(Integer, use_existing_column=False)
     gradebook3: Mapped[int] = mapped_column(Integer, use_existing_column=False)
