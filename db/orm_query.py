@@ -54,6 +54,13 @@ async def orm_get_student(session: AsyncSession, id: int):
     result = await session.execute(query)
     return result.scalar()
 
+
+async def get_student_telegram_ids(session: AsyncSession, group: int):
+    query = select(Student.studentTelegram_id).where(Student.studentGroup == group)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
 # async def orm_add_gradebook(session: AsyncSession, data: dict):
 #     # Создание дневника
 #     grade_b = Gradebook(
