@@ -192,3 +192,5 @@ fabric.properties
 all_group.json
 all_teachers_names.json
 .env
+
+my_base.db

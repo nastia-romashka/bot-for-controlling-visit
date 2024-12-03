@@ -12,9 +12,16 @@ start_kb = ReplyKeyboardMarkup(
 
 student_kb = ReplyKeyboardMarkup(
     keyboard=[[
-            KeyboardButton(text='Отметиться'),
             KeyboardButton(text='Оценки'),
             KeyboardButton(text='Посещения'),
+        ],
+    ],
+    resize_keyboard=True,
+)
+
+teacher_kb = ReplyKeyboardMarkup(
+    keyboard=[[
+            KeyboardButton(text='Выбрать группу'),
         ],
     ],
     resize_keyboard=True,
