@@ -55,11 +55,25 @@ async def orm_get_student(session: AsyncSession, id: int):
     return result.scalar()
 
 
-async def get_student_telegram_ids(session: AsyncSession, group: int):
-    query = select(Student.studentTelegram_id).where(Student.studentGroup == group)
+async def get_student_by_group(session: AsyncSession, group: int):
+    query = select(Student.studentTelegram_id, Student.studentSurname, Student.studentName,
+                   Student.studentPatronymic).where(Student.studentGroup == group)
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.all()
 
+# выводит информацию по предметам препода
+async def get_lesson_details(session: AsyncSession, id_teacher: int):
+    # Выполняем запрос для получения lessonId, lessonName и Type у определенного преподавателя
+    query = select(Lesson.lessonId, Lesson.lessonName, Lesson.lessonType, Lesson.group).where(Lesson.teacherTelegram_id == id_teacher)
+    result = await session.execute(query)
+    # Возвращаем список кортежей с данными уроков
+    return result.all()
+
+# выводит название и группу по id предмета
+async def get_lessonName_by_id(session: AsyncSession, id_lesson: int):
+    query = select(Lesson.lessonName, Lesson.lessonType, Lesson.group).where(Lesson.lessonId == id_lesson)
+    result = await session.execute(query)
+    return result.all()
 
 # async def orm_add_gradebook(session: AsyncSession, data: dict):
 #     # Создание дневника

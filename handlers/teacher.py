@@ -6,14 +6,15 @@ from filters.chat_types import ChatTypeFilter
 from all_buttons.buttons import start_kb
 from all_buttons import buttons
 from parser import ParsingSUAIRasp
-from all_buttons.inline_btn import get_callback_btns, get_group_buttons
+from all_buttons.inline_btn import get_callback_btns
 from hashlib import sha256
 from config import default_password
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_teacher, orm_get_teacher, orm_add_lesson
+from db.orm_query import orm_add_teacher, orm_get_teacher, orm_add_lesson, \
+    get_lesson_details, get_lessonName_by_id, get_student_by_group
 
 from loguru import logger
 import sys
@@ -27,7 +28,7 @@ teacher_router = Router()
 teacher_router.message.filter(ChatTypeFilter(["private"]))
 
 # Глобальные переменные
-attendance_data = {}
+#attendance_data = {}
 
 async def add_all_lessons(session: AsyncSession,data:dict, lessons: list):
     for el in lessons:
@@ -114,7 +115,7 @@ async def password(message: types.Message, state: FSMContext, session: AsyncSess
             Teacher_Registration.teacher_registration_step = None
             Teacher_Registration.teacher_registered = False
             await state.clear()
-            await message.answer("Вы вошли!", reply_markup=buttons.teacher_kb)
+            await message.answer("Вы вошли!", reply_markup=buttons.teacher_kb_1)
 
 
     else:
@@ -127,7 +128,7 @@ async def password(message: types.Message, state: FSMContext, session: AsyncSess
             try:
                 await orm_add_teacher(session, data)
                 await state.clear()
-                await message.answer("Вы вошли!", reply_markup=buttons.teacher_kb)
+                await message.answer("Вы вошли!", reply_markup=buttons.teacher_kb_1)
 
                 await add_all_lessons(session, data,pars.search_groups_and_lessons(f"{data['name_and_post'][0]+ data['name_and_post'][1]+ data['name_and_post'][2]}"))
 
@@ -155,8 +156,90 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer("Действия отменены", reply_markup=start_kb)
 
-@teacher_router.message(F.text == "Выбрать группу")
-async def choose_group(message: types.Message, state: FSMContext, session: AsyncSession):
+
+# Выбрать группу
+@teacher_router.message(F.text == 'Выбрать занятие')
+async def choose_discipline(message: types.Message, session: AsyncSession):
+    # Получаем ID чата пользователя
+    id_chat = message.chat.id
+    discipline: list = await get_lesson_details(session, id_chat)
+
+    # Проверяем, есть ли дисциплины
+    if not discipline:
+        await message.answer("У вас нет привязанных дисциплин.")
+        return
+
+    # Создаем инлайн-кнопки
+    buttons = [
+        InlineKeyboardButton(
+            text=f"{lesson_name} ({lesson_type}), гр. {lesson_group}",  # Текст кнопки: Название + Тип + Группа
+            callback_data=f"select_discipline_{lesson_id}"  # Данные: id предмета
+        )
+        for lesson_id, lesson_name, lesson_type, lesson_group in discipline
+    ]
+
+    # Создаем клавиатуру с кнопками
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons[i:i + 1] for i in range(len(buttons))])
+
+    # Отправляем сообщение с клавиатурой
+    await message.answer("Выберите занятие:",reply_markup=keyboard)
+
+#Обработчик выбора группы
+@teacher_router.callback_query(F.data.startswith("select_discipline_"))
+async def handle_selected_discipline(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    discipline_id = int(callback.data.split("_")[-1])
+    details: list = await get_lessonName_by_id(session, discipline_id)
+
+    # Распаковываем данные о предмете
+    lesson_name, lesson_type, group = details[0]
+
+    # Сохраняем номер группы в состоянии
+    await state.update_data(selected_group=group)
+
+    # Подтверждаем нажатие кнопки
+    await callback.answer("Занятие выбрано")
+    await callback.message.answer(f"Вы выбрали предмет: {lesson_name}({lesson_type}),"
+                                  f" гр.{group}", reply_markup=buttons.teacher_kb_2)
+
+# Отметить посещения
+@teacher_router.message(F.text == 'Отметить посещение')
+async def mark_visits(message: types.Message, session: AsyncSession, state: FSMContext):
+    data = await state.get_data() #!!!!!!!!!!состояние не сброшено
+    group = data.get("selected_group")
+
+    if not group:
+        await message.answer("Сначала выберите занятие.")
+        await state.clear()
+        return
+
+    students: list = await get_student_by_group(session, group)
+
+    # Создаем инлайн-кнопки
+    buttons = [
+        InlineKeyboardButton(
+            text=f"{stud_surname} {stud_name}.{stud_patronymic}.",
+            callback_data=f"select_stud_{stud_id}"
+        )
+        for stud_id, stud_surname, stud_name, stud_patronymic in students
+    ]
+
+    # Создаем клавиатуру с кнопками
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons[i:i + 1] for i in range(len(buttons))])
+
+    # Отправляем сообщение с клавиатурой
+    await message.answer("Отметьте студентов", reply_markup=keyboard)
+
+#Обработчик выбора студента
+@teacher_router.callback_query(F.data.startswith("select_stud_"))
+async def handle_selected_discipline(callback: types.CallbackQuery, session: AsyncSession):
+    #реализовать учет посещений
+    ...
+
+
+
+
+"""@teacher_router.message(F.text == "Выбрать группу")
+async def choose_group(message: types.Message, session: AsyncSession):
     # Получаем ID чата пользователя
     id_chat = message.chat.id
     # Извлекаем данные преподавателя из базы
@@ -192,7 +275,7 @@ async def handle_group_selection(callback: types.CallbackQuery, state: FSMContex
         reply_markup=start_attendance_kb
     )
 
-"""# Начало учёта посещаемости
+# Начало учёта посещаемости
 @teacher_router.callback_query(F.data.startswith("start_attendance_"))
 async def start_attendance(callback: types.CallbackQuery, state: FSMContext):
     group_number = callback.data.split("_")[-1]
