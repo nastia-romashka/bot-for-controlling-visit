@@ -195,4 +195,7 @@ all_teachers_names.json
 
 my_base.db
 
-table_name.xlsx
+table_gradebook.xlsx
+table_lessons.xlsx
+table_student.xlsx
+table_teacher.xlsx

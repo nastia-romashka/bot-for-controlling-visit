@@ -47,3 +47,11 @@ admin_kb = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True,
 )
+
+admin_kb2 = ReplyKeyboardMarkup(
+    keyboard=[[
+            KeyboardButton(text='Назад')
+        ],
+    ],
+    resize_keyboard=True,
+)

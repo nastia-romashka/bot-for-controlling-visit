@@ -9,11 +9,9 @@ from all_buttons import buttons
 from hashlib import sha256
 from config import default_password
 
-import asyncio
-
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_admin, orm_get_admin, orm_get_table_lesson, orm_load_table_lesson
-
+from db.orm_query import orm_add_admin, orm_get_admin, orm_get_table_lesson, orm_load_table_lesson, orm_get_table_student,orm_get_table_teacher, orm_get_table_gradebook
+from db.orm_query import orm_load_table_teacher, orm_load_table_gradebook, orm_load_table_students
 from loguru import logger
 import sys
 
@@ -23,11 +21,13 @@ logger.add(sys.stderr, level="DEBUG")
 admin_router = Router()
 admin_router.message.filter(ChatTypeFilter(["private"]))
 
+
 class Admin_Registration(StatesGroup):
     # Шаги состояний
     id: State = State()
     password: State = State()
     table: State = State()
+    load_table: State = State()
 
     admin_registration_step = None
 
@@ -44,6 +44,7 @@ async def starring(message: types.Message, state: FSMContext, session: AsyncSess
     await state.update_data(id=message.chat.id)
     await message.answer(f"Введите пароль")
     await state.set_state(Admin_Registration.password)
+
 
 # Ввод пароля
 @admin_router.message(Admin_Registration.password, F.text)
@@ -86,44 +87,106 @@ async def password(message: types.Message, state: FSMContext, session: AsyncSess
         else:
             await message.answer("Пароль не верен. Попробуйте снова.")
 
+
 @admin_router.message(Admin_Registration.table, F.text.in_(['Студенты', 'Занятия', 'Преподаватели', 'Журнал']))
 async def get_table(message: types.Message, state: FSMContext, session: AsyncSession):
-    if message.text == 'Занятия':
+    if message.text == 'Студенты':
+        # Генерация таблицы
+        await orm_get_table_student(session)
+        await state.update_data(table=message.text)
+
+        # Отправка файла
+        file_path = "table_student.xlsx"  # Путь к файлу
+        file = FSInputFile(file_path)
+        await state.set_state(Admin_Registration.load_table)
+        await message.answer_document(file, caption="Таблица студентов", reply_markup=buttons.admin_kb2)
+
+
+    elif message.text == 'Занятия':
         # Генерация таблицы
         await orm_get_table_lesson(session)
         await state.update_data(table=message.text)
 
+        # Отправка файла
+        file_path = "table_lessons.xlsx"  # Путь к файлу
+        file = FSInputFile(file_path)
+        await state.set_state(Admin_Registration.load_table)
+        await message.answer_document(file, caption="Таблица занятий", reply_markup=buttons.admin_kb2)
+
+    elif message.text == 'Преподаватели':
+        # Генерация таблицы
+        await orm_get_table_teacher(session)
+        await state.update_data(table=message.text)
 
         # Отправка файла
-        file_path = "table_name.xlsx"  # Путь к файлу
+        file_path = "table_teacher.xlsx"  # Путь к файлу
         file = FSInputFile(file_path)
-        await message.answer_document(file, caption="Таблица занятий")
+        await state.set_state(Admin_Registration.load_table)
+        await message.answer_document(file, caption="Таблица преподавателей", reply_markup=buttons.admin_kb2)
+
+    elif message.text == 'Журнал':
+        # Генерация таблицы
+        await orm_get_table_gradebook(session)
+        await state.update_data(table=message.text)
+
+        # Отправка файла
+        file_path = "table_gradebook.xlsx"  # Путь к файлу
+        file = FSInputFile(file_path)
+        await state.set_state(Admin_Registration.load_table)
+        await message.answer_document(file, caption="Таблица журнал", reply_markup=buttons.admin_kb2)
 
 
-@admin_router.message(StateFilter("*"), F.document)
+
+
+
+
+@admin_router.message(Admin_Registration.load_table, F.document,)
 async def load_table(message: types.Message, state: FSMContext, session: AsyncSession):
-
     data = await state.get_data()
-    if data['table'] == 'Занятия':
-        document = message.document
-        file_id = document.file_id
-        file_name = document.file_name
-        file_size = document.file_size
 
-        # Проверка, является ли документ Excel файлом
-        if file_name.endswith('.xlsx'):
-            # Скачивание файла
-            file = await message.bot.get_file(file_id)
-            file_path = file.file_path
+    document = message.document
+    file_id = document.file_id
+    file_name = document.file_name
+
+    # Проверка, является ли документ Excel файлом
+    if file_name.endswith('.xlsx'):
+        # Скачивание файла
+        file = await message.bot.get_file(file_id)
+        file_path = file.file_path
+
+        if data['table'] == 'Студенты':
+            await message.bot.download_file(file_path, f'./downloads/{file_name}')
+            await orm_load_table_students(session, f'./downloads/{file_name}')
+            await message.answer(f"Данные обновлены")
+
+
+        elif data['table'] == 'Занятия':
 
             await message.bot.download_file(file_path, f'./downloads/{file_name}')
             await orm_load_table_lesson(session, f'./downloads/{file_name}')
-            await state.set_state(Admin_Registration.password)
             await message.answer(f"Данные обновлены")
 
-        else:
-            await message.reply(f"Данный файл не формата .xlsx")
+        elif data['table'] == 'Преподаватели':
 
+            await message.bot.download_file(file_path, f'./downloads/{file_name}')
+            await orm_load_table_teacher(session, f'./downloads/{file_name}')
+            await message.answer(f"Данные обновлены")
+
+        elif data['table'] == 'Журнал':
+
+            await message.bot.download_file(file_path, f'./downloads/{file_name}')
+            await orm_load_table_gradebook(session, f'./downloads/{file_name}')
+            await message.answer(f"Данные обновлены")
+
+
+    else:
+        await message.reply(f"Данный файл не формата .xlsx")
+
+@admin_router.message(StateFilter("*"), F.text=='Назад')
+async def back(message: types.Message, state: FSMContext, session: AsyncSession):
+    if message.text == 'Назад':
+        await state.set_state(Admin_Registration.table)
+        await message.answer("▲", reply_markup=buttons.admin_kb)
 
 # Отмена действий
 @admin_router.message(StateFilter("*"), Command("отмена"))
@@ -136,4 +199,3 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
         Admin_Registration.admin_registration_step = None
     await state.clear()
     await message.answer("Действия отменены", reply_markup=start_kb)
-

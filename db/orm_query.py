@@ -100,6 +100,29 @@ async def orm_get_admin(session: AsyncSession, tg_id: int):
 
 
 # pip install openpyxl
+async def orm_get_table_student(session: AsyncSession):
+    # Выполняем запрос для получения всех записей
+    query = select(Student)
+    result = await session.execute(query)
+    student = result.scalars().all()  # Извлекаем объекты ORM
+
+    # Преобразуем данные в список словарей
+    data = [
+        {
+            'studentTelegram_id':  stud.studentTelegram_id,
+            'studentGroup':  stud.studentGroup,
+            'studentSurname':  stud.studentSurname,
+            'studentName':  stud.studentName,
+            'studentPatronymic':  stud.studentPatronymic
+        }
+        for stud in student
+    ]
+
+    # Создаем DataFrame
+    df = pd.DataFrame(data)
+
+    # Сохраняем в Excel
+    df.to_excel("table_student.xlsx", index=False)
 async def orm_get_table_lesson(session: AsyncSession):
     # Выполняем запрос для получения всех записей
     query = select(Lesson)
@@ -122,7 +145,76 @@ async def orm_get_table_lesson(session: AsyncSession):
     df = pd.DataFrame(data)
 
     # Сохраняем в Excel
-    df.to_excel("table_name.xlsx", index=False)
+    df.to_excel("table_lessons.xlsx", index=False)
+
+
+async def orm_get_table_teacher(session: AsyncSession):
+    # Выполняем запрос для получения всех записей
+    query = select(Teacher)
+    result = await session.execute(query)
+    teachers = result.scalars().all()  # Извлекаем объекты ORM
+
+    # Преобразуем данные в список словарей
+    data = [
+        {
+            'teacherTelegram_id': teacher.teacherTelegram_id,
+            'teacherSurname':  teacher.teacherSurname,
+            'teacherName': teacher.teacherName,
+            'teacherPatronymic':   teacher.teacherPatronymic,
+            'teacherPosition':     teacher.teacherPosition,
+            'teacherPassword':   teacher.teacherPassword}
+
+        for teacher in teachers
+    ]
+
+    # Создаем DataFrame
+    df = pd.DataFrame(data)
+
+    # Сохраняем в Excel
+    df.to_excel("table_teacher.xlsx", index=False)
+
+async def orm_get_table_gradebook(session: AsyncSession):
+    # Выполняем запрос для получения всех записей
+    query = select(Gradebook)
+    result = await session.execute(query)
+    gradebooks = result.scalars().all()  # Извлекаем объекты ORM
+
+    # Преобразуем данные в список словарей
+    data = [
+        {
+            'gradebookId': gradebook.gradebookId,
+            'lessonId': gradebook.lessonId,
+            'studentTelegram_id': gradebook.studentTelegram_id,
+            'gradebook5': gradebook.gradebook5,
+            'gradebook4': gradebook.gradebook4,
+            'gradebook3': gradebook.gradebook3,
+            'gradebook2': gradebook.gradebook2,
+            'gradebookVisits': gradebook.gradebookVisits
+    }
+
+        for gradebook in gradebooks
+    ]
+
+    # Создаем DataFrame
+    df = pd.DataFrame(data)
+
+    # Сохраняем в Excel
+    df.to_excel("table_gradebook.xlsx", index=False)
+
+async def orm_load_table_students(session: AsyncSession, path: str):
+    # Читаем файл
+    xlsx = pd.ExcelFile(path)
+    sheet1_df = xlsx.parse('Sheet1')
+
+    for row in sheet1_df.itertuples():
+        query = update(Student).where(Student.studentTelegram_id == row.studentTelegram_id).values({
+            'studentGroup':  row.studentGroup,
+            'studentSurname':  row.studentSurname,
+            'studentName':  row.studentName,
+            'studentPatronymic':  row.studentPatronymic})
+
+        await session.execute(query)
+        await session.commit()
 
 async def orm_load_table_lesson(session: AsyncSession, path: str):
     # Читаем файл
@@ -137,6 +229,41 @@ async def orm_load_table_lesson(session: AsyncSession, path: str):
 
         await session.execute(query)
         await session.commit()
+
+async def orm_load_table_teacher(session: AsyncSession, path: str):
+    # Читаем файл
+    xlsx = pd.ExcelFile(path)
+    sheet1_df = xlsx.parse('Sheet1')
+
+    for row in sheet1_df.itertuples():
+        query = update(Teacher).where(Teacher.teacherTelegram_id == row.teacherTelegram_id).values({
+            'teacherSurname':  row.teacherSurname,
+            'teacherName': row.teacherName,
+            'teacherPatronymic':   row.teacherPatronymic,
+            'teacherPosition':     row.teacherPosition,
+            'teacherPassword':   row.teacherPassword})
+
+        await session.execute(query)
+        await session.commit()
+
+async def orm_load_table_gradebook(session: AsyncSession, path: str):
+    # Читаем файл
+    xlsx = pd.ExcelFile(path)
+    sheet1_df = xlsx.parse('Sheet1')
+
+    for row in sheet1_df.itertuples():
+        query = update(Gradebook).where(Gradebook.gradebookId == row.gradebookId).values({
+            'lessonId': row.lessonId,
+            'studentTelegram_id': row.studentTelegram_id,
+            'gradebook5': row.gradebook5,
+            'gradebook4': row.gradebook4,
+            'gradebook3': row.gradebook3,
+            'gradebook2': row.gradebook2,
+            'gradebookVisits': row.gradebookVisits})
+
+        await session.execute(query)
+        await session.commit()
+
 
 async def orm_add_gradebook(session: AsyncSession, data: dict):
     # Создание дневника
