@@ -117,6 +117,9 @@ async def password(message: types.Message, state: FSMContext, session: AsyncSess
             await state.clear()
             await message.answer("Вы вошли!", reply_markup=buttons.teacher_kb_1)
 
+        else:
+            await message.answer("Пароль не верен. Попробуйте снова.")
+
 
     else:
         # Успешная регистрация
