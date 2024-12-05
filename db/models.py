@@ -51,6 +51,5 @@ class Gradebook(Base):
 class Admin(Base):
     __tablename__ = 'admin'
 
-    adminId: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    adminTelegram_id: Mapped[int] = mapped_column(Integer)
+    adminTelegram_id: Mapped[int] = mapped_column(Integer,primary_key=True,use_existing_column=False)
     adminPassword: Mapped[str] = mapped_column(String(64), use_existing_column=False)

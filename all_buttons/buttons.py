@@ -36,3 +36,14 @@ teacher_kb_2 = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True,
 )
+
+admin_kb = ReplyKeyboardMarkup(
+    keyboard=[[
+            KeyboardButton(text='Студенты'),
+            KeyboardButton(text='Занятия'),
+            KeyboardButton(text='Преподаватели'),
+            KeyboardButton(text='Журнал')
+        ],
+    ],
+    resize_keyboard=True,
+)

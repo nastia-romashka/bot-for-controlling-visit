@@ -13,6 +13,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from handlers.teacher import teacher_router
 from handlers.student import student_router
+from handlers.admin import admin_router
 
 from db.engine import create_db, drop_db, session_maker
 from middlewares.db import DataBaseSession
@@ -37,6 +38,8 @@ async def start_cmd(message: types.Message):
 dp.include_router(teacher_router)
 # Обработчик событий для студента
 dp.include_router(student_router)
+# Обработчик событий для админа
+dp.include_router(admin_router)
 
 
 # Функция создания db при включении бота

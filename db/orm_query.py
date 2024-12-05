@@ -2,6 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import Teacher, Lesson, Student, Gradebook, Admin
 from sqlalchemy import select
 from parser import Lessons
+import pandas as pd
+from loguru import logger
+import sys
+
+logger.remove()
+logger.add(sys.stderr, level="DEBUG")
+
 
 
 async def orm_add_teacher(session: AsyncSession, data: dict):
@@ -74,6 +81,48 @@ async def get_lessonName_by_id(session: AsyncSession, id_lesson: int):
     query = select(Lesson.lessonName, Lesson.lessonType, Lesson.group).where(Lesson.lessonId == id_lesson)
     result = await session.execute(query)
     return result.all()
+
+async def orm_add_admin(session: AsyncSession, data: dict):
+    # Создание админа
+    admin = Admin(
+        adminTelegram_id=data['id'],
+        adminPassword=data['password']
+    )
+
+    # Добавление админа в таблицу
+    session.add(admin)
+    await session.commit()
+
+async def orm_get_admin(session: AsyncSession, tg_id: int):
+    query = select(Admin).where(Admin.adminTelegram_id == tg_id)
+    result = await session.execute(query)
+    return result.scalar()
+
+
+# pip install openpyxl
+async def orm_get_table_lesson(session: AsyncSession):
+    # Выполняем запрос для получения всех записей
+    query = select(Lesson)
+    result = await session.execute(query)
+    lessons = result.scalars().all()  # Извлекаем объекты ORM
+
+    # Преобразуем данные в список словарей
+    data = [
+        {
+            "lessonId": lesson.lessonId,
+            "teacherTelegram_id": lesson.teacherTelegram_id,
+            "lessonName": lesson.lessonName,
+            "lessonType": lesson.lessonType,
+            "group": lesson.group
+        }
+        for lesson in lessons
+    ]
+
+    # Создаем DataFrame
+    df = pd.DataFrame(data)
+
+    # Сохраняем в Excel
+    df.to_excel("table_name.xlsx", index=False)
 
 # async def orm_add_gradebook(session: AsyncSession, data: dict):
 #     # Создание дневника
