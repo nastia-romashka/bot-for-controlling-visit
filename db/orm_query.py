@@ -124,6 +124,20 @@ async def orm_get_table_lesson(session: AsyncSession):
     # Сохраняем в Excel
     df.to_excel("table_name.xlsx", index=False)
 
+async def orm_load_table_lesson(session: AsyncSession, path: str):
+    # Читаем файл
+    xlsx = pd.ExcelFile(path)
+    sheet1_df = xlsx.parse('Sheet1')
+
+    for row in sheet1_df.itertuples():
+        query = update(Lesson).where(Lesson.lessonId == row.lessonId).values({'teacherTelegram_id': row.teacherTelegram_id,
+                                                                              'lessonName': row.lessonName,
+                                                                              'lessonType': row.lessonType,
+                                                                              'group':row.group})
+
+        await session.execute(query)
+        await session.commit()
+
 async def orm_add_gradebook(session: AsyncSession, data: dict):
     # Создание дневника
     grade_b = Gradebook(
