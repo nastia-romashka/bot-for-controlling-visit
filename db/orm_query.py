@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import Teacher, Lesson, Student, Gradebook, Admin
-from sqlalchemy import select
+from sqlalchemy import select, update
 from parser import Lessons
 import pandas as pd
 from loguru import logger
@@ -124,22 +124,37 @@ async def orm_get_table_lesson(session: AsyncSession):
     # Сохраняем в Excel
     df.to_excel("table_name.xlsx", index=False)
 
-# async def orm_add_gradebook(session: AsyncSession, data: dict):
-#     # Создание дневника
-#     grade_b = Gradebook(
-#         lessonId=data['les_id'],
-#         studentId=data['st_id'],
-#         gradebook5=0,
-#         gradebook4=0,
-#         gradebook3=0,
-#         gradebook2=0,
-#         gradebookVisits=0
-#     )
-#
-#     # Добавление преподавателя в таблицу
-#     session.add(grade_b)
-#     await session.commit()
-#
+async def orm_add_gradebook(session: AsyncSession, data: dict):
+    # Создание дневника
+    grade_b = Gradebook(
+        lessonId=data['les_id'],
+        studentTelegram_id=data['st_id'],
+        gradebook5=0,
+        gradebook4=0,
+        gradebook3=0,
+        gradebook2=0,
+        gradebookVisits=0
+    )
+
+    # Добавление преподавателя в таблицу
+    session.add(grade_b)
+    await session.commit()
+
+async def add_gradebook_visit(session: AsyncSession, st_id: int, les_id: int):
+    query = update(Gradebook).where(Gradebook.studentTelegram_id == st_id and Gradebook.lessonId == les_id).values(gradebookVisits=Gradebook.gradebookVisits + 1)
+    await session.execute(query)
+    await session.commit()
+
+async def add_gradebook_grade(session: AsyncSession, st_id: int, les_id: int, grade: int):
+
+    grade_column = f'gradebook{grade}'
+
+    query = (update(Gradebook).where(Gradebook.studentTelegram_id == st_id, Gradebook.lessonId == les_id)
+             .values({grade_column: getattr(Gradebook, grade_column) + 1}))
+
+    await session.execute(query)
+    await session.commit()
+
 # async def orm_add_admin(session: AsyncSession, data: dict):
 #     # Создание дневника
 #     adm = Admin(
