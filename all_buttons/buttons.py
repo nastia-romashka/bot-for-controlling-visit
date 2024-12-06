@@ -12,6 +12,7 @@ start_kb = ReplyKeyboardMarkup(
 
 student_kb = ReplyKeyboardMarkup(
     keyboard=[[
+            KeyboardButton(text='Выбрать предмет'),
             KeyboardButton(text='Оценки'),
             KeyboardButton(text='Посещения'),
         ],

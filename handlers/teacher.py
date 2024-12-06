@@ -160,7 +160,7 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     await message.answer("Действия отменены", reply_markup=start_kb)
 
 
-# Выбрать группу
+# Выбор занятия и группы
 @teacher_router.message(F.text == 'Выбрать занятие')
 async def choose_discipline(message: types.Message, session: AsyncSession):
     # Получаем ID чата пользователя
@@ -245,7 +245,7 @@ async def handle_selected_stud(callback: types.CallbackQuery, session: AsyncSess
         return
 
     # если в бд у ученика еще нет дневника, он создается
-    students_gradebook = await get_gradebook_by_stud(session, stud_id)
+    students_gradebook = await get_gradebook_by_stud(session, stud_id, discipline_id)
     if not students_gradebook:
         await orm_add_gradebook(session, stud_id, discipline_id)
 
@@ -253,8 +253,8 @@ async def handle_selected_stud(callback: types.CallbackQuery, session: AsyncSess
     await add_gradebook_visit(session, stud_id, discipline_id)
     # Подтверждаем нажатие кнопки по студенту
     Stud = await orm_get_student(session, stud_id)
-    await callback.answer(f"Вы отметили ученика {Stud.studentSurname} {Stud.studentName}.{ Stud.studentPatronymic}")
-    await callback.message.answer(f"Ученик {Stud.studentSurname} {Stud.studentName}.{ Stud.studentPatronymic} отмечен.")
+    await callback.answer(f"Вы отметили ученика {Stud.studentSurname} {Stud.studentName}.{ Stud.studentPatronymic}.")
+    await callback.message.answer(f"Ученик {Stud.studentSurname} {Stud.studentName}.{ Stud.studentPatronymic}. отмечен.")
 
 # Поставить оценки
 @teacher_router.message(F.text == 'Поставить оценки')
@@ -297,7 +297,7 @@ async def handle_give_ratings(callback: types.CallbackQuery, session: AsyncSessi
         return
 
     # если в бд у ученика еще нет дневника, он создается
-    students_gradebook = await get_gradebook_by_stud(session, stud_id)
+    students_gradebook = await get_gradebook_by_stud(session, stud_id, discipline_id)
     if not students_gradebook:
         await orm_add_gradebook(session, stud_id, discipline_id)
 

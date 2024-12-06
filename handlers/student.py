@@ -3,12 +3,15 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from filters.chat_types import ChatTypeFilter
-from all_buttons.buttons import start_kb
 from all_buttons import buttons
 from parser import ParsingSUAIRasp
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_student, orm_get_student
+from db.orm_query import orm_add_student, orm_get_student, get_lesson_details_by_group,\
+    get_lessonName_by_id, get_gradebook_by_stud, orm_add_gradebook
+
 
 from loguru import logger
 import sys
@@ -82,6 +85,114 @@ async def add_group_st(message: types.Message, state: FSMContext, session: Async
         await state.clear()
     else:
         await message.answer(f"Группы {message.text} нет. Попробуйте снова")
+
+
+# Выбор предмета
+@student_router.message(F.text == 'Выбрать предмет')
+async def choose_discipline(message: types.Message, session: AsyncSession):
+    # Получаем ID чата пользователя
+    id_chat = message.chat.id
+    Stud = await orm_get_student(session, id_chat)
+    group = int(Stud.studentGroup)
+    classes: list = await get_lesson_details_by_group(session, group)
+
+    # Проверяем, есть ли дисциплины
+    if not classes:
+        await message.answer("У вас нет привязанных дисциплин.")
+        return
+
+        # Создаем инлайн-кнопки
+    buttons = [
+        InlineKeyboardButton(
+            text=f"{lesson_name} ({lesson_type})",  # Текст кнопки: Название + Тип
+            callback_data=f"select_classes_{lesson_id}"  # Данные: id предмета
+        )
+        for lesson_id, lesson_name, lesson_type in classes
+    ]
+
+    # Создаем клавиатуру с кнопками
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons[i:i + 1] for i in range(len(buttons))])
+
+    # Отправляем сообщение с клавиатурой
+    await message.answer("Выберите предмет:", reply_markup=keyboard)
+
+#Обработчик выбора предмета
+@student_router.callback_query(F.data.startswith("select_classes_"))
+async def handle_selected_discipline(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    discipline_id = int(callback.data.split("_")[-1])
+    details: list = await get_lessonName_by_id(session, discipline_id)
+
+    # Распаковываем данные о предмете
+    lesson_name, lesson_type, group = details[0]
+
+    # Сохраняем номер группы в состоянии
+    await state.update_data(selected_group=group, select_discipline_id=discipline_id)
+
+    # Подтверждаем нажатие кнопки
+    await callback.answer("Занятие выбрано")
+    await callback.message.answer(f"Вы выбрали предмет: {lesson_name}({lesson_type})"
+                                  , reply_markup=buttons.student_kb)
+
+# посмотреть оценки
+@student_router.message(F.text == 'Оценки')
+async def see_ratings(message: types.Message, session: AsyncSession, state: FSMContext):
+    data = await state.get_data()  # !!!!!!!!!!состояние не сброшено
+    classe = data.get("select_discipline_id")
+    id_chat = message.chat.id
+
+    if not classe:
+        await message.answer("Сначала выберите предмет.")
+        await state.clear()
+        return
+
+    # если в бд у ученика еще нет дневника, он создается
+    students_gradebook = await get_gradebook_by_stud(session, id_chat, classe)
+    if not students_gradebook:
+        await orm_add_gradebook(session, id_chat, classe)
+
+    # Формируем список оценок
+    grades = (
+        [5] * (students_gradebook.gradebook5 or 0) +
+        [4] * (students_gradebook.gradebook4 or 0) +
+        [3] * (students_gradebook.gradebook3 or 0) +
+        [2] * (students_gradebook.gradebook2 or 0)
+    )
+
+    # Преобразуем список оценок в строку
+    grades_str = ", ".join(map(str, grades))
+
+    # Распаковываем данные о предмете
+    details: list = await get_lessonName_by_id(session, classe)
+    lesson_name, lesson_type, group = details[0]
+
+    # Отправляем сообщение с оценками
+    await message.answer(
+        f"Ваши оценки по предмету {lesson_name}({lesson_type}): {grades_str}"
+    )
+
+# посмотреть оценки
+@student_router.message(F.text == 'Посещения')
+async def see_visits(message: types.Message, session: AsyncSession, state: FSMContext):
+    data = await state.get_data()  # !!!!!!!!!!состояние не сброшено
+    classe = data.get("select_discipline_id")
+    id_chat = message.chat.id
+
+    if not classe:
+        await message.answer("Сначала выберите предмет.")
+        await state.clear()
+        return
+
+    # если в бд у ученика еще нет дневника, он создается
+    students_gradebook = await get_gradebook_by_stud(session, id_chat, classe)
+    if not students_gradebook:
+        await orm_add_gradebook(session, id_chat, classe)
+
+    # Распаковываем данные о предмете
+    details: list = await get_lessonName_by_id(session, classe)
+    lesson_name, lesson_type, group = details[0]
+
+    # Отправляем сообщение с оценками
+    await message.answer(f"По предмету {lesson_name}({lesson_type}) у вас {students_gradebook.gradebookVisits} посещений")
 
 """# Обработчик отметки студента
 @student_router.callback_query(F.data.startswith("mark_attendance_"),)

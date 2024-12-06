@@ -296,12 +296,19 @@ async def add_gradebook_grade(session: AsyncSession, st_id: int, les_id: int, gr
     await session.execute(query)
     await session.commit()
 
-    #выводит дневник по id_студента
-async def get_gradebook_by_stud(session: AsyncSession, st_id: int):
-    query = select(Gradebook).where(Gradebook.studentTelegram_id == st_id)
+    #выводит дневник по id_студента и id предмета
+async def get_gradebook_by_stud(session: AsyncSession, st_id: int, id_lesson: int):
+    query = select(Gradebook).where(Gradebook.studentTelegram_id == st_id,  Gradebook.lessonId == id_lesson)
     result = await session.execute(query)
-    return result.all()
+    return result.scalar()
 
+# выводит информацию по предметам по номеру группы
+async def get_lesson_details_by_group(session: AsyncSession, num_group: int):
+    # Выполняем запрос для получения lessonId, lessonName и Type у определенного преподавателя
+    query = select(Lesson.lessonId, Lesson.lessonName, Lesson.lessonType).where(Lesson.group == num_group)
+    result = await session.execute(query)
+    # Возвращаем список кортежей с данными уроков
+    return result.all()
 
 
 # async def orm_add_admin(session: AsyncSession, data: dict):
