@@ -24,3 +24,11 @@ def get_group_buttons(groups: list[str]) -> InlineKeyboardMarkup:
     ]
     # Возвращаем клавиатуру, где каждая кнопка в отдельной строке
     return InlineKeyboardMarkup(inline_keyboard=[[button] for button in buttons])
+
+def rating():
+    buttons = [InlineKeyboardButton(text="2", callback_data="rating_2"),
+               InlineKeyboardButton(text="3", callback_data="rating_3"),
+               InlineKeyboardButton(text="4", callback_data="rating_4"),
+               InlineKeyboardButton(text="5", callback_data="rating_5")]
+
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])

@@ -4,17 +4,17 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from filters.chat_types import ChatTypeFilter
 from all_buttons.buttons import start_kb
-from all_buttons import buttons
+from all_buttons import buttons, inline_btn
 from parser import ParsingSUAIRasp
-from all_buttons.inline_btn import get_callback_btns
 from hashlib import sha256
 from config import default_password
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_teacher, orm_get_teacher, orm_add_lesson, \
-    get_lesson_details, get_lessonName_by_id, get_student_by_group
+from db.orm_query import orm_add_teacher, orm_get_teacher, orm_add_lesson, orm_add_gradebook,\
+    get_lesson_details, get_lessonName_by_id, get_student_by_group, add_gradebook_visit, \
+    get_gradebook_by_stud, orm_get_student, add_gradebook_grade
 
 from loguru import logger
 import sys
@@ -86,7 +86,7 @@ async def add_name(message: types.Message, state: FSMContext):
     for i in range(len(names)):
         name_post[names[i]] = f'teacher_{message.text}_{i}'
 
-    await message.answer("Выберете себя", reply_markup=get_callback_btns(btns=name_post))
+    await message.answer("Выберете себя", reply_markup=inline_btn.get_callback_btns(btns=name_post))
     await state.set_state(Teacher_Registration.name_and_post)
 
 # Получения информации после выбора преподавателя из списка
@@ -197,7 +197,7 @@ async def handle_selected_discipline(callback: types.CallbackQuery, session: Asy
     lesson_name, lesson_type, group = details[0]
 
     # Сохраняем номер группы в состоянии
-    await state.update_data(selected_group=group)
+    await state.update_data(selected_group=group, select_discipline_id=discipline_id)
 
     # Подтверждаем нажатие кнопки
     await callback.answer("Занятие выбрано")
@@ -234,10 +234,100 @@ async def mark_visits(message: types.Message, session: AsyncSession, state: FSMC
 
 #Обработчик выбора студента
 @teacher_router.callback_query(F.data.startswith("select_stud_"))
-async def handle_selected_discipline(callback: types.CallbackQuery, session: AsyncSession):
-    #реализовать учет посещений
-    ...
+async def handle_selected_stud(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    stud_id = int(callback.data.split("_")[-1])
+    data = await state.get_data()
+    discipline_id = data.get("select_discipline_id")
 
+    if not discipline_id:
+        await callback.message.answer("Сначала выберите занятие.")
+        await state.clear()
+        return
+
+    # если в бд у ученика еще нет дневника, он создается
+    students_gradebook = await get_gradebook_by_stud(session, stud_id)
+    if not students_gradebook:
+        await orm_add_gradebook(session, stud_id, discipline_id)
+
+    # добавляем студенту одно посещение
+    await add_gradebook_visit(session, stud_id, discipline_id)
+    # Подтверждаем нажатие кнопки по студенту
+    Stud = await orm_get_student(session, stud_id)
+    await callback.answer(f"Вы отметили ученика {Stud.studentSurname} {Stud.studentName}.{ Stud.studentPatronymic}")
+    await callback.message.answer(f"Ученик {Stud.studentSurname} {Stud.studentName}.{ Stud.studentPatronymic} отмечен.")
+
+# Поставить оценки
+@teacher_router.message(F.text == 'Поставить оценки')
+async def give_ratings(message: types.Message, session: AsyncSession, state: FSMContext):
+    data = await state.get_data() #!!!!!!!!!!состояние не сброшено
+    group = data.get("selected_group")
+
+    if not group:
+        await message.answer("Сначала выберите занятие.")
+        await state.clear()
+        return
+
+    students: list = await get_student_by_group(session, group)
+
+    # Создаем инлайн-кнопки
+    buttons = [
+        InlineKeyboardButton(
+            text=f"{stud_surname} {stud_name}.{stud_patronymic}.",
+            callback_data=f"get_stud_{stud_id}"
+        )
+        for stud_id, stud_surname, stud_name, stud_patronymic in students
+    ]
+
+    # Создаем клавиатуру с кнопками
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons[i:i + 1] for i in range(len(buttons))])
+
+    # Отправляем сообщение с клавиатурой
+    await message.answer("Выберете кому поставить оценку", reply_markup=keyboard)
+
+#Обработчик выставления оценок
+@teacher_router.callback_query(F.data.startswith("get_stud_"))
+async def handle_give_ratings(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    stud_id = int(callback.data.split("_")[-1])
+    data = await state.get_data()
+    discipline_id = data.get("select_discipline_id")
+
+    if not discipline_id:
+        await callback.message.answer("Сначала выберите занятие.")
+        await state.clear()
+        return
+
+    # если в бд у ученика еще нет дневника, он создается
+    students_gradebook = await get_gradebook_by_stud(session, stud_id)
+    if not students_gradebook:
+        await orm_add_gradebook(session, stud_id, discipline_id)
+
+    # подтверждаем нажатие кнопок
+    Stud = await orm_get_student(session, stud_id)
+    stud_SNP = f"{Stud.studentSurname} {Stud.studentName}.{Stud.studentPatronymic}."
+    await callback.answer(stud_SNP)
+    await callback.message.answer(f"Какую оценку поставить студенту {stud_SNP}?",
+                                  reply_markup=inline_btn.rating())
+    # Сохраняем номер группы в состоянии
+    await state.update_data(selected_group=Stud.studentGroup, select_discipline_id=discipline_id,
+                            select_stud_id=stud_id, select_stud_SNP=stud_SNP)
+
+#Обработчик выставления оценок
+@teacher_router.callback_query(F.data.startswith("rating_"))
+async def handle_ratings_into_database(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    rating = int(callback.data.split("_")[-1])
+    data = await state.get_data()
+    discipline_id = data.get("select_discipline_id")
+
+    if not discipline_id:
+        await callback.message.answer("Сначала выберите занятие.")
+        await state.clear()
+        return
+
+    # выставляем студенту оценку
+    await add_gradebook_grade(session, data.get("select_stud_id"), discipline_id, rating)
+    # Подтверждаем нажатие кнопки по студенту
+    await callback.answer(f"Оценка {rating}")
+    await callback.message.answer(f"Вы поставили ученику {data.get('select_stud_SNP')} оценку {rating}.")
 
 
 

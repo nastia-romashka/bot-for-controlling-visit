@@ -265,11 +265,11 @@ async def orm_load_table_gradebook(session: AsyncSession, path: str):
         await session.commit()
 
 
-async def orm_add_gradebook(session: AsyncSession, data: dict):
+async def orm_add_gradebook(session: AsyncSession, st_id: int, les_id: int):
     # Создание дневника
     grade_b = Gradebook(
-        lessonId=data['les_id'],
-        studentTelegram_id=data['st_id'],
+        lessonId=les_id,
+        studentTelegram_id=st_id,
         gradebook5=0,
         gradebook4=0,
         gradebook3=0,
@@ -277,7 +277,7 @@ async def orm_add_gradebook(session: AsyncSession, data: dict):
         gradebookVisits=0
     )
 
-    # Добавление преподавателя в таблицу
+    # Добавление в таблицу
     session.add(grade_b)
     await session.commit()
 
@@ -295,6 +295,14 @@ async def add_gradebook_grade(session: AsyncSession, st_id: int, les_id: int, gr
 
     await session.execute(query)
     await session.commit()
+
+    #выводит дневник по id_студента
+async def get_gradebook_by_stud(session: AsyncSession, st_id: int):
+    query = select(Gradebook).where(Gradebook.studentTelegram_id == st_id)
+    result = await session.execute(query)
+    return result.all()
+
+
 
 # async def orm_add_admin(session: AsyncSession, data: dict):
 #     # Создание дневника
