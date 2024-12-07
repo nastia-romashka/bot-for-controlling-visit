@@ -10,8 +10,8 @@ from hashlib import sha256
 from config import default_password
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_admin, orm_get_admin, orm_get_table_lesson, orm_load_table_lesson, orm_get_table_student,orm_get_table_teacher, orm_get_table_gradebook
-from db.orm_query import orm_load_table_teacher, orm_load_table_gradebook, orm_load_table_students
+from db.orm_query_admin import orm_add_admin, orm_get_admin, orm_get_table_lesson, orm_load_table_lesson, orm_get_table_student,orm_get_table_teacher, orm_get_table_gradebook
+from db.orm_query_admin import orm_load_table_teacher, orm_load_table_gradebook, orm_load_table_students
 from loguru import logger
 import sys
 
@@ -38,7 +38,6 @@ class Admin_Registration(StatesGroup):
     }
 
 
-# Начало регистрации преподавателя
 @admin_router.message(Command('admin'))
 async def starring(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.update_data(id=message.chat.id)
@@ -51,9 +50,8 @@ async def starring(message: types.Message, state: FSMContext, session: AsyncSess
 async def password(message: types.Message, state: FSMContext, session: AsyncSession):
     hash_password = sha256(message.text.encode('utf-8')).hexdigest()
 
-    # Проверка был ли преподаватель зарегистрирован ранее
-    if Admin_Registration.admin_registered:
-        adm = await orm_get_admin(session, message.chat.id)
+    adm = await orm_get_admin(session, message.chat.id)
+    if adm and adm.adminTelegram_id:
         pw = adm.adminPassword
 
         if hash_password == pw:

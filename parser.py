@@ -156,11 +156,11 @@ class ParsingSUAIRasp:
             groups_lessons = []
 
             for el in lessons:
-                if len(el.find('span', "groups").text) <= 12:
+                if len(el.find('span', "groups").text) <= 13:
                     gr = el.find('span', "groups").text
                     les = el.find('span').text
                     tip = el.find("b").find_next_sibling("b").text if el.find('b').text in '▲▼' else el.find('b').text
-                    l: Lessons = Lessons (int(gr[gr.find(':') + 2:]), tip, les[les.find('–') + 2:les.rfind('–') - 2])
+                    l: Lessons = Lessons (gr[gr.find(':') + 2:], tip, les[les.find('–') + 2:les.rfind('–') - 2])
                     if not (l in groups_lessons):
                         groups_lessons.append(l)
 
@@ -221,4 +221,4 @@ if __name__ == '__main__':
     logger.debug(Pars.search_lessons('Аграновский А.В.'))
     logger.debug(Pars.search_groups('Аграновский А.В.'))
     logger.debug(Pars.search_groups_and_lessons('Акопян Б К'))
-    logger.debug(Pars.search_groups_and_lessons('Аграновский А.В.'))
+    logger.debug(Pars.search_groups_and_lessons('Чернышев С.А.'))
