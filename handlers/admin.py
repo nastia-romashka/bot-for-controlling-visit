@@ -10,8 +10,8 @@ from hashlib import sha256
 from config import default_password
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query_admin import orm_add_admin, orm_get_admin, orm_get_table_lesson, orm_load_table_lesson, orm_get_table_student,orm_get_table_teacher, orm_get_table_gradebook
-from db.orm_query_admin import orm_load_table_teacher, orm_load_table_gradebook, orm_load_table_students
+from db.orm_query.orm_query_admin import orm_add_admin, orm_get_admin, orm_get_table_lesson, orm_load_table_lesson, orm_get_table_student,orm_get_table_teacher, orm_get_table_gradebook
+from db.orm_query.orm_query_admin import orm_load_table_teacher, orm_load_table_gradebook, orm_load_table_students
 from loguru import logger
 import sys
 

@@ -9,10 +9,9 @@ from parser import ParsingSUAIRasp
 from hashlib import sha256
 from config import default_password
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_teacher, orm_get_teacher, orm_add_lesson, orm_add_gradebook,\
+from db.orm_query.orm_query_teacher import orm_add_teacher, orm_get_teacher, orm_add_lesson, orm_add_gradebook,\
     get_lesson_details, get_lessonName_by_id, get_student_by_group, add_gradebook_visit, \
     get_gradebook_by_stud, orm_get_student, add_gradebook_grade
 

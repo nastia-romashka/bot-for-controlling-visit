@@ -1,5 +1,5 @@
 from aiogram import F, Router, types
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from filters.chat_types import ChatTypeFilter
@@ -9,7 +9,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.orm_query import orm_add_student, orm_get_student, get_lesson_details_by_group,\
+from db.orm_query.orm_query_student import orm_add_student, orm_get_student, get_lesson_details_by_group,\
     get_lessonName_by_id, get_gradebook_by_stud, orm_add_gradebook
 
 

@@ -1,5 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.models import Teacher, Lesson, Student, Gradebook, Admin
+from db.models.admin import Admin
+from db.models.teacher import Teacher
+from db.models.gradebook import Gradebook
+from db.models.student import Student
+from db.models.lesson import Lesson
 from sqlalchemy import select, update
 import pandas as pd
 from loguru import logger
