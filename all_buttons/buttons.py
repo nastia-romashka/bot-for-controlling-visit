@@ -2,6 +2,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 start_kb = ReplyKeyboardMarkup(
     keyboard=[[
+            KeyboardButton(text='Староста'),
             KeyboardButton(text='Студент'),
             KeyboardButton(text='Преподаватель'),
         ],
@@ -15,6 +16,25 @@ student_kb = ReplyKeyboardMarkup(
             KeyboardButton(text='Выбрать предмет'),
             KeyboardButton(text='Оценки'),
             KeyboardButton(text='Посещения'),
+        ],
+    ],
+    resize_keyboard=True,
+)
+
+starosta_kb = ReplyKeyboardMarkup(
+    keyboard=[[
+            KeyboardButton(text='Загрузить список группы'),
+            KeyboardButton(text='Выбрать предмет'),
+            KeyboardButton(text='Оценки'),
+            KeyboardButton(text='Посещения'),
+        ],
+    ],
+    resize_keyboard=True,
+)
+
+starosta_kb2 = ReplyKeyboardMarkup(
+    keyboard=[[
+            KeyboardButton(text='Вернуться назад')
         ],
     ],
     resize_keyboard=True,

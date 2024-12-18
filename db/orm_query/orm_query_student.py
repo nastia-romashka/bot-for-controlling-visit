@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models.gradebook import Gradebook
 from db.models.student import Student
 from db.models.lesson import Lesson
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 async def orm_add_student(session: AsyncSession, data: dict):
     # Создание студента
@@ -57,3 +57,26 @@ async def get_gradebook_by_stud(session: AsyncSession, st_id: int, id_lesson: in
     query = select(Gradebook).where(Gradebook.studentTelegram_id == st_id,  Gradebook.lessonId == id_lesson)
     result = await session.execute(query)
     return result.scalar()
+
+async def orm_student_verification(session: AsyncSession, data: dict):
+    # Создание студента
+    stud = Student(
+        studentSurname=data['name_stud'][:-5],
+        studentName=data['name_stud'][-4:-3],
+        studentPatronymic=data['name_stud'][-2:-1],
+        studentGroup=data['group']
+    )
+
+    query = select(Student.studentTelegram_id).where(Student.studentSurname == stud.studentSurname,
+                                  Student.studentName == stud.studentName,
+                                  Student.studentPatronymic == stud.studentPatronymic,
+                                  Student.studentGroup == stud.studentGroup)
+
+    result = await session.execute(query)
+    return result.scalar()
+
+async def orm_update_student(session: AsyncSession, st_id_old: int, st_id_new: int):
+    query = update(Student).where(Student.studentTelegram_id == st_id_old).values(studentTelegram_id=st_id_new)
+    await session.execute(query)
+    await session.commit()
+
