@@ -10,10 +10,14 @@ from hashlib import sha256
 from config import default_password
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from aiogram.types import FSInputFile
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.orm_query.orm_query_teacher import orm_add_teacher, orm_get_teacher, orm_add_lesson, orm_add_gradebook,\
     get_lesson_details, get_lessonName_by_id, get_student_by_group, add_gradebook_visit, \
-    get_gradebook_by_stud, orm_get_student, add_gradebook_grade
+    get_gradebook_by_stud, orm_get_student, add_gradebook_grade, create_student_dataframe
+
+from dashboard.dashboard import create_dashboard
 
 from loguru import logger
 import sys
@@ -285,6 +289,18 @@ async def give_ratings(message: types.Message, session: AsyncSession, state: FSM
 
     # Отправляем сообщение с клавиатурой
     await message.answer("Выберете кому поставить оценку", reply_markup=keyboard)
+
+# Получить статистику
+@teacher_router.message(F.text == 'Получить статистику')
+async def give_ratings(message: types.Message, session: AsyncSession, state: FSMContext):
+    data = await state.get_data()
+    df = await create_student_dataframe(session,data.get("selected_group"))
+
+    create_dashboard(df,'dashboard/dashboard.png')
+
+    photo = FSInputFile("dashboard/dashboard.png")
+    await message.answer_photo(photo)
+
 
 #Обработчик выставления оценок
 @teacher_router.callback_query(F.data.startswith("get_stud_"))
