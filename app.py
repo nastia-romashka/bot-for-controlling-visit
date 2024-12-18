@@ -6,7 +6,7 @@ from loguru import logger
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from dotenv import find_dotenv, load_dotenv
-
+from aiogram.fsm.context import FSMContext
 load_dotenv(find_dotenv())
 
 from aiogram.enums import ParseMode
@@ -14,6 +14,7 @@ from aiogram.client.default import DefaultBotProperties
 from handlers.teacher import teacher_router
 from handlers.student import student_router
 from handlers.admin import admin_router
+from handlers.starosta import starosta_router
 
 from db.engine import create_db, drop_db, session_maker
 from middlewares.db import DataBaseSession
@@ -29,7 +30,8 @@ dp = Dispatcher()
 
 # функция, реагирующая на команду start
 @dp.message(CommandStart())
-async def start_cmd(message: types.Message):
+async def start_cmd(message: types.Message, state: FSMContext):
+    await state.clear()
     await message.answer("В роли кого вы будете использовать этого тг бота?",
                          reply_markup=buttons.start_kb)
 
@@ -40,7 +42,8 @@ dp.include_router(teacher_router)
 dp.include_router(student_router)
 # Обработчик событий для админа
 dp.include_router(admin_router)
-
+# Обработчик событий для старосты
+dp.include_router(starosta_router)
 
 # Функция создания db при включении бота
 async def on_startup(bot):

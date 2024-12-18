@@ -10,3 +10,5 @@ class Student(Base):
     studentSurname: Mapped[str] = mapped_column(String(30), use_existing_column=False)
     studentName: Mapped[str] = mapped_column(String(30), use_existing_column=False)
     studentPatronymic: Mapped[str] = mapped_column(String(30), use_existing_column=False)
+    check_Starosta: Mapped[int] = mapped_column(Integer, default=0)
+    starosta_Password: Mapped[int] = mapped_column(Integer, default=0)

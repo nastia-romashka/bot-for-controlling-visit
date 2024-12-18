@@ -80,6 +80,9 @@ async def add_name(message: types.Message, state: FSMContext):
     await state.update_data(id=message.chat.id)
     names: list = pars.get_names_and_post(message.text)
 
+    if not names:
+        await message.answer("Имя не найдено, пожалуйста, введите его заново.")
+
     name_post: dict[str, str] = {}
 
     for i in range(len(names)):
