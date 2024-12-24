@@ -6,6 +6,7 @@ from filters.chat_types import ChatTypeFilter
 from all_buttons import buttons
 from parser import ParsingSUAIRasp
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import re
 
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,9 +63,14 @@ async def starting_st(message: types.Message, state: FSMContext, session: AsyncS
 # Получение имени
 @student_router.message(Student_Registration.name_stud, F.text)
 async def add_name_st(message: types.Message, state: FSMContext):
-    await state.update_data(name_stud=message.text)
-    await message.answer("Введите номер группы")
-    await state.set_state(Student_Registration.group)
+    name_pattern = re.compile(r"^[А-ЯЁ][а-яё]+\s[А-ЯЁ].[А-ЯЁ]\.$")
+
+    if name_pattern.match(message.text):
+        await state.update_data(name_stud=message.text)
+        await message.answer("Введите номер группы")
+        await state.set_state(Student_Registration.group)
+    else:
+        await message.answer("Пожалуйста, введите имя в формате 'Иванов И.И.'")
 
 # Получение группы
 @student_router.message(Student_Registration.group, F.text)

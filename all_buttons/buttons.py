@@ -23,10 +23,12 @@ student_kb = ReplyKeyboardMarkup(
 
 starosta_kb = ReplyKeyboardMarkup(
     keyboard=[[
-            KeyboardButton(text='Загрузить список группы'),
             KeyboardButton(text='Выбрать предмет'),
             KeyboardButton(text='Оценки'),
             KeyboardButton(text='Посещения'),
+        ],
+        [
+            KeyboardButton(text='Загрузить список группы'),
         ],
     ],
     resize_keyboard=True,

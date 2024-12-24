@@ -6,9 +6,10 @@ from aiogram.fsm.state import State, StatesGroup
 from filters.chat_types import ChatTypeFilter
 from all_buttons import buttons
 from hashlib import sha256
-from config import default_password
+from config import password_st
 from parser import ParsingSUAIRasp
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import re
 
 from db.orm_query.orm_query_starosta import orm_get_starosta, orm_add_starosta, orm_get_table_students, \
     orm_load_table_students, orm_update_starosta
@@ -58,7 +59,7 @@ async def password_starosta(message: types.Message, state: FSMContext, session: 
     hash_password = sha256(message.text.encode('utf-8')).hexdigest()
 
     starosta = await orm_get_starosta(session, message.chat.id)
-    if starosta and starosta.studentTelegram_id and (hash_password == default_password):
+    if starosta and starosta.studentTelegram_id and (hash_password == password_st):
         await orm_update_starosta(session, message.chat.id)
         Starosta_Registration.starosta_registered = True
         await message.answer("Вы уже зарегистрировались", reply_markup=buttons.starosta_kb)
@@ -71,7 +72,7 @@ async def password_starosta(message: types.Message, state: FSMContext, session: 
 
     else:
         # Верный пароль
-        if hash_password == default_password:
+        if hash_password == password_st:
             await state.update_data(password_starosta=hash_password)
             # await state.set_state(Admin_Registration.table)
             # Если студента нет в базе данных, переходим к регистрации
@@ -87,9 +88,14 @@ async def password_starosta(message: types.Message, state: FSMContext, session: 
 
 @starosta_router.message(Starosta_Registration.name_starosta, F.text)
 async def add_name_starosta(message: types.Message, state: FSMContext):
-    await state.update_data(name_starosta=message.text)
-    await message.answer("Введите номер группы")
-    await state.set_state(Starosta_Registration.group_starosta)
+    name_pattern = re.compile(r"^[А-ЯЁ][а-яё]+\s[А-ЯЁ].[А-ЯЁ]\.$")
+
+    if name_pattern.match(message.text):
+        await state.update_data(name_starosta=message.text)
+        await message.answer("Введите номер группы")
+        await state.set_state(Starosta_Registration.group_starosta)
+    else:
+        await message.answer("Пожалуйста, введите имя в формате 'Иванов И.И.'")
 
 # Получение группы
 @starosta_router.message(Starosta_Registration.group_starosta, F.text)
